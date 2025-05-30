@@ -1,0 +1,17 @@
+- General structure
+    - [] images for writing pieces
+- [] Two sections on the webpage
+    - [] 1. Homepage
+    - [] 2. Writing
+- [] Base Nav Menu
+    - [] Links to each page
+    - [] Responsiveness
+        - [] Desktop: Show full text
+        - [] Mobile: Hamburger menu
+- [] Writing Menu
+    - [] Links to each piece of writing
+    - [] Responsiveness
+        - [] Desktop: Show full menu
+        - [] Mobile: stack beneath the nav menu, make it sticky, and create a collapsible functionality
+    - Execution:
+        - Grid Layout: Vary percentages based on the screen size
