@@ -2,6 +2,7 @@ body {
     margin: 0;
     font-family: Arial, sans-serif;
 }
+/* Site Nav */
 nav {
     background: #222;
     color: #fff;
@@ -10,8 +11,7 @@ nav {
     align-items: center;
     padding: 0.5rem 1rem;
 }
-.nav-logo {
-    
+.nav-logo {   
 }
 .nav-logo a {
     color: #fff;
@@ -33,6 +33,27 @@ nav {
 .nav-links a:hover {
     background: #444;
 }
+/* Writing Nav Elements */
+.writing-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 1rem;
+}
+.blog-nav {
+    display: block;
+    /* height: 100vh; Creates issues with blocking out content*/
+    /* 
+    Under normal management (i.e. desktop)
+        1. Show the full menu
+    When we get to mobile
+        1. Get rid of the full menu and replace it with the button
+        2. Update the menu to be inline
+    */
+}
+.blog-nav-toggle {
+    display: none
+}
+
 @media (max-width: 600px) {
     /* Site Nav Elements */
     .nav-links {
@@ -55,10 +76,31 @@ nav {
         font-size: 1.5rem;
         cursor: pointer;
     }
+    /* Blog Nav Elements */
+    .writing-layout {
+        display: block;
+    }
+    .blog-nav {
+        display: block;
+        padding: 0 1rem;
+    }
+    .blog-nav-toggle {
+        display: inline-block;
+        float: left;
+        margin: 0 1rem 0 0;
+    }
+    .writing-content {
+        display: block;
+    }
+    .post-selection {
+        display: none;
+    }
 }
 @media (min-width: 601px) {
     /* Site Nav Elements */
     .nav-toggle {
         display: none;
     }
+    /* Writing Nav Elements */
+
 }
