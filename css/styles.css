@@ -41,7 +41,6 @@ nav {
 }
 .blog-nav {
     display: block;
-    /* height: 100vh; Creates issues with blocking out content*/
     /* 
     Under normal management (i.e. desktop)
         1. Show the full menu
@@ -51,7 +50,20 @@ nav {
     */
 }
 .blog-nav-toggle {
-    display: none
+    display: none;
+    background: #222;
+    border: none;
+    color: #fff;
+    text-decoration: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+.blog-nav-toggle:hover {
+    background: #444;
 }
 
 @media (max-width: 600px) {

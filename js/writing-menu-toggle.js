@@ -9,4 +9,6 @@ toggle.addEventListener('click', () => {
     writingLayout.classList.toggle('open');
     postSelection.classList.toggle('open');
     toggle.classList.toggle('open');
+    // Update text in toggle
+    toggle.textContent = menu.classList.contains('open') ? '✖ Hide Posts' : '☰ Show Posts';
 });
