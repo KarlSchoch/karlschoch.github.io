@@ -76,9 +76,14 @@ nav {
         font-size: 1.5rem;
         cursor: pointer;
     }
-    /* Blog Nav Elements */
+    /* Blog Nav Elements - Open vs. Closed */
     .writing-layout {
         display: block;
+    }
+    .writing-layout.open {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 1rem;
     }
     .blog-nav {
         display: block;
@@ -89,12 +94,22 @@ nav {
         float: left;
         margin: 0 1rem 0 0;
     }
+    .blog-nav-toggle.open {
+        display: block;
+        float: none;
+        margin: 1rem 1rem 1rem 0;
+    }
     .writing-content {
         display: block;
     }
     .post-selection {
         display: none;
     }
+    .post-selection.open {
+        display: block;
+    }
+    /* Open */
+
 }
 @media (min-width: 601px) {
     /* Site Nav Elements */
