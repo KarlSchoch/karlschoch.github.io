@@ -41,6 +41,7 @@ nav {
 }
 .blog-nav {
     display: block;
+    height: 100vh;
     /* 
     Under normal management (i.e. desktop)
         1. Show the full menu
@@ -100,6 +101,7 @@ nav {
     .blog-nav {
         display: block;
         padding: 0 1rem;
+        height: auto;
     }
     .blog-nav-toggle {
         display: inline-block;
