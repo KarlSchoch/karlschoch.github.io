@@ -14,10 +14,14 @@
         <script src="/js/nav-menu-toggle.js"></script>
         <main class="writing-layout" id="writing-layout">
             <nav class="blog-nav" id="blog-nav">
+                <!-- Do not include blog-nav on the writing landing page -->
+                <script src="js/include-blog-nav.js"></script>
                 <!-- Use toggle to choose whether to show blog-nav  -->
                 <button class="blog-nav-toggle" id="blog-nav-toggle">☰ Show Posts</button>
-                <script src="js/include-writing-menu-toggle.js"></script>
                 <div class="post-selection" id="post-selection">
+                    <p>
+                        <a href="/writing.html">Writing Home</a>
+                    </p>
                     Posts
                     <div id="post-links-writing-nav">
                         <!-- JS injected links to posts -->
