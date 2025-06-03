@@ -1,0 +1,136 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+/* Site Nav */
+nav {
+    background: #222;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+}
+.nav-logo a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+.nav-links {
+    display: flex;
+    gap: 1rem;
+}
+.nav-links a {
+    color: #fff;
+    text-decoration: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+.nav-links a:hover {
+    background: #444;
+}
+/* Writing Nav Elements */
+.writing-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 1rem;
+}
+.blog-nav {
+    display: block;
+    height: 100vh;
+}
+.blog-nav a {
+    color: white;
+}
+.blog-nav a:visited {
+    color: white;
+}
+.blog-nav-toggle {
+    display: none;
+    background: #222;
+    border: none;
+    color: #fff;
+    text-decoration: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+.blog-nav-toggle:hover {
+    background: #444;
+}
+/* Writing Content */
+.writing-content {
+    margin: 1rem;
+}
+
+@media (max-width: 600px) {
+    /* Site Nav Elements */
+    .nav-links {
+        flex-direction: column;
+        background: #222;
+        position: absolute;
+        top: 3.5rem;
+        left: 0;
+        right: 0;
+        display: none;
+    }
+    .nav-links.active {
+        display: flex;
+    }
+    .nav-toggle {
+        display: block;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+    /* Blog Nav Elements - Open vs. Closed */
+    .writing-layout {
+        display: block;
+    }
+    .writing-layout.open {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 1rem;
+    }
+    .blog-nav {
+        display: block;
+        padding: 0 1rem;
+        height: auto;
+    }
+    .blog-nav-toggle {
+        display: inline-block;
+        float: left;
+        margin: 0 1rem 0 0;
+    }
+    .blog-nav-toggle.open {
+        display: block;
+        float: none;
+        margin: 1rem 1rem 1rem 0;
+    }
+    .writing-content {
+        display: block;
+    }
+    .post-selection {
+        display: none;
+    }
+    .post-selection.open {
+        display: block;
+    }
+    /* Open */
+
+}
+@media (min-width: 601px) {
+    /* Site Nav Elements */
+    .nav-toggle {
+        display: none;
+    }
+    /* Writing Nav Elements */
+
+}
