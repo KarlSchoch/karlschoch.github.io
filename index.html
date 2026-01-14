@@ -3,20 +3,197 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="css/styles.css">
-    <!-- Begin Page Specific Content -->
+    <!-- <link rel="stylesheet" href="css/styles.css"> -->
+     <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+    />
     <title>Karl Schoch's Personal Website</title>
-    <!-- End Page Specific Content -->
   </head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/nginx.min.js"></script>
+
+  <script>
+    hljs.highlightAll();
+  </script>
+
   <body>
-    <script src="/js/include-all-pages.js"></script>
-    <nav id="site-nav"></nav>
-    <script src="/js/nav-menu-toggle.js"></script>
     <main>
-      <!-- Begin Page Specific Content -->
-      <h1>Karl Schoch</h1>
-      <p>Welcome to my website!</p>
-      <!-- End Page Specific Content -->
+      <h2>Why Nginx?</h2>
+      <h3>Date: TBD</h3>
+      <p>
+        I have recently embarked on a journey to create an application that is being used by my brother-in-law - the textbook example of a "personal project."  My motivations for doing this were numerous, but significant amongst them were a desire to learn things.  This is (hopefully) the first in a series of posts to catalog what I have learned.
+      </p>
+      <p>
+        The first thing that I learned, unsurprisingly, was something that I already thought I "knew".  Working on large applications that utilized K8s, I obviously knew what Nginx was, but it wasn't until I started to take the training wheels (both in terms of my teammates and K8s) that I came to REALLY BEGIN TO understand what was going on at the edge of my K8s clusters.  In this cluster, I will try to give you a RIVETING "blow-by-blow" account of this journey of discovery.
+      </p>
+      <p>
+        <ul>
+          <li><span style="font-weight: 700;">Loop One</span></li>
+            <ul>
+              <li>I need a Domain, but <span style="color: red">getting to this application is a disaster!</span></li>
+              <li><span style="color: green">Insight</span>: What DNS does and how Nginx "fills in the gaps"</li>
+            </ul>
+          <li><span style="font-weight: 700;">Loop Two</span></li>
+            <ul>
+              <li>Ok, but don't <span style="color: red">I already have a web server?</span></li>
+              <li><span style="color: green">Insight</span>: What's <span style="font-weight: 700;">REALLY</span> going on in the <code>asgi.py</code> and <code>wsgi.py</code> files</li>
+            </ul>
+          <li><span style="font-weight: 700;">Widening the Aperture</span>: Let's talk about PEPs</li>
+        </ul>
+        
+          |-> What DNS Actually Does
+
+              |-> Why Nginx
+                  |-> SSL
+                  |-> Reverse Proxy
+                  |-> Load Balancing
+                  |-> ASGI, WSGI, uvicorn, etc.
+                      |-> asgi.py and wsgi.py
+                      |-> PEPs
+      </p>
+      <h4>
+        Loop One
+      </h4>
+      <p>
+        I had worked with my brother-in-law for a while to get the application "up-to-speed", and during that time I had basically been sending him to an IP address/port/route combination.  I knew that this was not sustainable for a number of reasons, but I wanted to be able to iterate quickly and at that point I was more interested in learning about AI/Django fundamentals than the "scut" work of making the application more user friendly/secure.  Additionally, he just wanted certain features baseline features available, and was willing to tolerate some slight jankiness to get those capabilities.
+      </p>
+      <p>
+        Once we had a working version of the application, however, I knew that I needed to give my brother-in-law a domain name.  Having been around software for a while, I knew enought to know that I needed to purchase a domain name and create a DNS record to the server's IP address.  After some light, ChatGPT-aided fiddling around clogged up A Records, I had things **kind of** working but...
+      </p>
+      <h5><span style="color: red">Getting to this application is a disaster!</span></h5>
+      <p>
+        In order for me to get access to the application through the domain, I had to do two things: disable security policies for my browser and type in the <code>http://${domain}:${port}/${path}</code> path to the application.  Even if this clunkiness was not a problem for my brother-in-law, I knew that this routing issue was incredibly solvable and so, in the spirit of this being an "educational" project I attempted to dive in and solve it.  Obviously, this being the ChatGPT era, I had a solution at my finger-tips (and even before ChatGPT, there were thousands of Medium articles walkthing through how to create a Nginx -> WSGI/ASGI -> Django deployment), so the real value came not from "solving" this problem in the context of my application, but in understanding, and being able to clearly explain, the "why" behind what ChatGPT (or the Medium articles) were giving me.  I came to quickly realize that <span style="color: green;">DNS and Nginx were a match made in (Engineer) heaven that "got gaps, but together they fill gaps"</span> (to quote, of course, the <a href="https://www.youtube.com/watch?v=UlYkaYbabVM">Poet Laureatte of Philadelphia</a>).
+      </p>
+      <div style="display: flex; justify-content: center;">
+        <table style="border-collapse: collapse; text-align: center;">
+          <caption style="caption-side: bottom; padding: 5px 0 0 0; font-weight: bold;">
+            Separation of Concerns
+          </caption>
+          <thead>
+            <tr>
+              <th style="padding: 8px 12px; border: 1px solid #ddd;">Domain → IP</th>
+              <th style="padding: 8px 12px; border: 1px solid #ddd;">IP → Your Application</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">DNS</td>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">Nginx</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <h5><span style="color: green">DNS: Taking you from Domains to IPs</span></h5>
+      I'm not going to delve too deeply into this, since it is covered in any introductory networking resource in far more detail than I really care to go into, but the key point that was driven home to me by looking at the issues with going from my domain to my application's home page was that DNS, given a domain, will give you an IP.  This is obviously very powerful, but that is (essentially) all that you are looking for when you create your various DNS records: create the ability to route traffic from your domain to your server/load balancer/ingress.
+      <h5><span style="color: green">Nginx: Reverse Proxy, Security, and more</span> (once you're at the IP)</h5>
+      <p>
+        Once the request arrived at my IP address, I started to appreciate some of the utility that Nginx provided.  I am not going to go into all of the functionality that Nginx can provide, but just the two capabilities (Reverse Proxy and SSL termination) that I found most relevant to my situation
+      </p>
+      <h6>Reverse Proxy</h6>
+      <p>
+        <span style="font-weight: 700;">TLDR</span> Nginx's Reverse Proxy capability allowed me to ensure that when my brother-in-law typed <code>https://www.domain</code> he was sucessfully redirected to the port and route where my application was hosted without having to enter the port and route each time into the browser's URL bar.
+      </p>
+      <p>
+        <span style="font-weight: 700;">Tracing the Request - Conceptually</span>
+      </p>
+      <p>
+        Before I write out the Nginx configuration that I used to accomplish this task, I am going to describe (to the best of my understanding) what is happening when a user types in <code>http://domain</code>
+        <ol>
+          <li>Browser sends an HTTP/HTTPS request to the DNS server</li>
+          <li>Request gets an IP address from the DNS server</li>
+          <li>Request gets to the IP address</li>
+          <li>Your application is being hosted on a specific port (usually 8000 in Django) and route (indicated in <code>urls.py</code> in Django) on that server</li>
+        </ol>
+        At that point, you can see where the problem lies: between steps three and four.  Without the user explicitly entering the port and route information into the browser, the request doesn't have the information required to "find its way" to your application.  <span style="font-weight: 700;">This is where Nginx as a Reverse Proxy comes in</span>: it provides the request with those "directions."
+      </p>
+      <p>
+        <span style="font-weight: 700;">Walking through the Code</span>
+      </p>
+      <p>
+        With this framing in mind, let's begin to go through the most relevant portions of the <code>default.conf</code> for this topic that is <a href="https://github.com/KarlSchoch/missour.ai/blob/main/nginx/default.conf">hosted in my application's GitHub.</a>
+      </p>
+      <p>
+        <ul>
+          <pre><code class="language=Nginx">
+server {
+  listen 80;
+  ...
+}
+
+server {
+  listen 443 ssl;
+  ...
+}</code></pre>
+          <ul>
+            <li>Tells Nginx which ports to listen on for incoming traffic</li>
+            <li>Ensure that Nginx can receive the HTTP and HTTPS traffic that the browser is sending</li>
+            <li>If Nginx never receives the request, it can't provide the request with the "directions" to the application</li>
+          </ul>
+          <pre><code class="language=Nginx">
+server {
+  ...
+  server_name missour.ai www.missour.ai;
+  ...
+}</code></pre>
+          <ul>
+            <li>This block, in something of a juxtaposition to the previous block, is intended to ensure that only the correct traffic gets handled by your application</li>
+            <li>Go to a website, open the DevTools Network Tab, hit the record button, reload a page, stop recording, and then click on one of the files being loaded</li>
+            <li>Click on the "Headers" tab and find the "Host" entry.</li>
+            <li>This section of the <code>default.conf</code> ensures that there is a "handshake" between what is in the "Hosts" portion of the HTTP/HTTPS header and your <code>server</code> block, which in turn avoids accidentally serving your application</li>
+            <li>There are also certificate issues this helps address, but I will cover that in the next section.</li>
+          </ul>
+          <pre><code class="language-nginx">
+server {
+  listen 443 ssl;
+  ...
+
+  location = / {
+    return 302 /transcription/;
+  }
+
+  location / {
+      proxy_pass http://web:8000;
+      ...
+  }
+}</code></pre>
+        <ul>
+          <li>The first concept to understand here is the difference between <span style="font-weight: 700;">exact</span> and <span style="font-weight: 700;">prefix</span> matches</li>
+          <ul>
+            <li>Exact Match: Matches the **exact** URI.  This is the type of match given in the <code>location = /</code> code block.</li>
+            <li>Prefix Match: Matches **anything** that starts with the prefix (i.e. "/")</li>
+          </ul>
+          <li>Nginx chooses the most specific paths first when making routing decisions, so it will use the information provided in the exact match first and redirect the user to <code>/transcription/</code>.</li>
+          <li>From there, Nginx falls back onto the prefix match (i.e. <code>location /</code>)</li>
+          <li>Within that location block, you can see that there are three components: <code>http://</code>, <code>web</code>, <code>:8000</code></li>
+          <ul>
+            <li><code>http://</code> and <code>:8000</code>: These two relate to the protcol and port that the asgi/wsgi server is listening on.  Since I am using uvicorn, I fell in on these values and this is likely to be boilerplate across various Nginx <code>default.conf</code> files.</li>
+            <li><code>web</code>: This matches the name of the service that I gave my Django application in my <code>docker-compose.yml</code>.  I am sure that this "synching" is something I will have to dig into at some point, but at this point I've gotten pretty comfortable with deploying applications on my own with Docker Compose and am content for now with this being a piece of trivia that is something of a black box.</li>
+          </ul>
+          <li>You will notice that the URI redirected to during the exact match (i.e. <code>/transcription/</code>) is noticably <span style="font-weight: 700;">absent</span> from the <code>proxy_pass</code></li>
+          <li>The reason for this is because if you don't include a URI within the <code>proxy_pass</code>, the original URI that was passed is preservered.  In this case, you get <code>/transcription/</code> in and <code>/transcription/</code> out.  This functionality is covered, somewhat confusingly in my opinion, in the portion of the Nginx documentation on <a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html?&_ga=2.116761478.1846178885.1768335297-359185141.1768335297#proxy_pass"><code>proxy_pass</code></a></li>
+        </ul>
+        <pre><code class="language-nginx">
+server {
+  listen 80;
+  ...
+
+  location / {
+      return 301 https://$host$request_uri;
+  }
+}</code></pre>
+      <ul>
+        <li>You may notice that in the last code block, we were listening on port 443 for HTTPS traffic, but in this code block we are listening on port 80.</li>
+        <li>The reason for this is because we want to ensure that users are able to reach the application via either an HTTP or HTTPS connection, but we want them to be redirected to HTTPS for security reasons.</li>
+        <li>We accomplish this goal with the <code>location / { return 301 ... }</code> block which ensure that users, when they go to "http://missour.ai" automatically get redirected to the same location via HTTPS (as indicated by the <code>301</code> HTTP status code).</li>
+        <li>In order to redirect to the same location, you use two variables (<code>$host</code> and <code>$request_uri</code>) that Nginx "automagically" creates based on an incoming request.</li>
+
+      </ul>
+      </p>
+      <p><span style="font-weight: 700;">Putting it all Together</span></p>
+      <h6>SSL Termination</h6>
+      <p>Ipsum Lorem</p>
+
     </main>
   </body>
 </html>
