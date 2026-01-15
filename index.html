@@ -32,12 +32,12 @@
           <li><span style="font-weight: 700;">Loop One</span></li>
             <ul>
               <li>I need a Domain, but <span style="color: red">getting to this application is a disaster!</span></li>
-              <li><span style="color: green">Insight</span>: What DNS does and how Nginx "fills in the gaps"</li>
+              <li><span style="color: green">Insight</span>: DNS and Nginx "fill gaps"</li>
             </ul>
           <li><span style="font-weight: 700;">Loop Two</span></li>
             <ul>
               <li>Ok, but don't <span style="color: red">I already have a web server?</span></li>
-              <li><span style="color: green">Insight</span>: What's <span style="font-weight: 700;">REALLY</span> going on in the <code>asgi.py</code> and <code>wsgi.py</code> files</li>
+              <li><span style="color: green">Insight</span>: <code>asgi.py</code> and <code>wsgi.py</code> are basically fancy main.py files</li>
             </ul>
           <li><span style="font-weight: 700;">Widening the Aperture</span>: Let's talk about PEPs</li>
         </ul>
@@ -63,7 +63,11 @@
       </p>
       <h5><span style="color: red">Getting to this application is a disaster!</span></h5>
       <p>
-        In order for me to get access to the application through the domain, I had to do two things: disable security policies for my browser and type in the <code>http://${domain}:${port}/${path}</code> path to the application.  Even if this clunkiness was not a problem for my brother-in-law, I knew that this routing issue was incredibly solvable and so, in the spirit of this being an "educational" project I attempted to dive in and solve it.  Obviously, this being the ChatGPT era, I had a solution at my finger-tips (and even before ChatGPT, there were thousands of Medium articles walkthing through how to create a Nginx -> WSGI/ASGI -> Django deployment), so the real value came not from "solving" this problem in the context of my application, but in understanding, and being able to clearly explain, the "why" behind what ChatGPT (or the Medium articles) were giving me.  I came to quickly realize that <span style="color: green;">DNS and Nginx were a match made in (Engineer) heaven that "got gaps, but together they fill gaps"</span> (to quote, of course, the <a href="https://www.youtube.com/watch?v=UlYkaYbabVM">Poet Laureatte of Philadelphia</a>).
+        In order for me to get access to the application through the domain, I had to do two things: disable security policies for my browser and type in the <code>http://${domain}:${port}/${path}</code> path to the application.  Even if this clunkiness was not a problem for my brother-in-law, I knew that this routing issue was incredibly solvable and so, in the spirit of this being an "educational" project I attempted to dive in and solve it.  Obviously, this being the ChatGPT era, I had a solution at my finger-tips (and even before ChatGPT, there were thousands of Medium articles walkthing through how to create a Nginx -> WSGI/ASGI -> Django deployment), so the real value came not from "solving" this problem in the context of my application, but in understanding, and being able to clearly explain, the "why" behind what ChatGPT (or the Medium articles) were giving me.  I came to quickly realize that...
+      </p>
+      <h5><span style="color: green;">DNS and Nginx "fill gaps"</span></h5>
+      <p>
+        Just like Rocky and Adrienne, Nginx and 
       </p>
       <div style="display: flex; justify-content: center;">
         <table style="border-collapse: collapse; text-align: center;">
@@ -130,6 +134,8 @@ server {
             <li>Ensure that Nginx can receive the HTTP and HTTPS traffic that the browser is sending</li>
             <li>If Nginx never receives the request, it can't provide the request with the "directions" to the application</li>
           </ul>
+        </ul>
+        <ul>
           <pre><code class="language=Nginx">
 server {
   ...
@@ -143,6 +149,8 @@ server {
             <li>This section of the <code>default.conf</code> ensures that there is a "handshake" between what is in the "Hosts" portion of the HTTP/HTTPS header and your <code>server</code> block, which in turn avoids accidentally serving your application</li>
             <li>There are also certificate issues this helps address, but I will cover that in the next section.</li>
           </ul>
+        </ul>
+        <ul>
           <pre><code class="language-nginx">
 server {
   listen 443 ssl;
@@ -157,23 +165,25 @@ server {
       ...
   }
 }</code></pre>
-        <ul>
-          <li>The first concept to understand here is the difference between <span style="font-weight: 700;">exact</span> and <span style="font-weight: 700;">prefix</span> matches</li>
           <ul>
-            <li>Exact Match: Matches the **exact** URI.  This is the type of match given in the <code>location = /</code> code block.</li>
-            <li>Prefix Match: Matches **anything** that starts with the prefix (i.e. "/")</li>
+            <li>The first concept to understand here is the difference between <span style="font-weight: 700;">exact</span> and <span style="font-weight: 700;">prefix</span> matches</li>
+            <ul>
+              <li>Exact Match: Matches the **exact** URI.  This is the type of match given in the <code>location = /</code> code block.</li>
+              <li>Prefix Match: Matches **anything** that starts with the prefix (i.e. "/")</li>
+            </ul>
+            <li>Nginx chooses the most specific paths first when making routing decisions, so it will use the information provided in the exact match first and redirect the user to <code>/transcription/</code>.</li>
+            <li>From there, Nginx falls back onto the prefix match (i.e. <code>location /</code>)</li>
+            <li>Within that location block, you can see that there are three components: <code>http://</code>, <code>web</code>, <code>:8000</code></li>
+            <ul>
+              <li><code>http://</code> and <code>:8000</code>: These two relate to the protcol and port that the asgi/wsgi server is listening on.  Since I am using uvicorn, I fell in on these values and this is likely to be boilerplate across various Nginx <code>default.conf</code> files.</li>
+              <li><code>web</code>: This matches the name of the service that I gave my Django application in my <code>docker-compose.yml</code>.  I am sure that this "synching" is something I will have to dig into at some point, but at this point I've gotten pretty comfortable with deploying applications on my own with Docker Compose and am content for now with this being a piece of trivia that is something of a black box.</li>
+            </ul>
+            <li>You will notice that the URI redirected to during the exact match (i.e. <code>/transcription/</code>) is noticably <span style="font-weight: 700;">absent</span> from the <code>proxy_pass</code></li>
+            <li>The reason for this is because if you don't include a URI within the <code>proxy_pass</code>, the original URI that was passed is preservered.  In this case, you get <code>/transcription/</code> in and <code>/transcription/</code> out.  This functionality is covered, somewhat confusingly in my opinion, in the portion of the Nginx documentation on <a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html?&_ga=2.116761478.1846178885.1768335297-359185141.1768335297#proxy_pass"><code>proxy_pass</code></a></li>
           </ul>
-          <li>Nginx chooses the most specific paths first when making routing decisions, so it will use the information provided in the exact match first and redirect the user to <code>/transcription/</code>.</li>
-          <li>From there, Nginx falls back onto the prefix match (i.e. <code>location /</code>)</li>
-          <li>Within that location block, you can see that there are three components: <code>http://</code>, <code>web</code>, <code>:8000</code></li>
-          <ul>
-            <li><code>http://</code> and <code>:8000</code>: These two relate to the protcol and port that the asgi/wsgi server is listening on.  Since I am using uvicorn, I fell in on these values and this is likely to be boilerplate across various Nginx <code>default.conf</code> files.</li>
-            <li><code>web</code>: This matches the name of the service that I gave my Django application in my <code>docker-compose.yml</code>.  I am sure that this "synching" is something I will have to dig into at some point, but at this point I've gotten pretty comfortable with deploying applications on my own with Docker Compose and am content for now with this being a piece of trivia that is something of a black box.</li>
-          </ul>
-          <li>You will notice that the URI redirected to during the exact match (i.e. <code>/transcription/</code>) is noticably <span style="font-weight: 700;">absent</span> from the <code>proxy_pass</code></li>
-          <li>The reason for this is because if you don't include a URI within the <code>proxy_pass</code>, the original URI that was passed is preservered.  In this case, you get <code>/transcription/</code> in and <code>/transcription/</code> out.  This functionality is covered, somewhat confusingly in my opinion, in the portion of the Nginx documentation on <a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html?&_ga=2.116761478.1846178885.1768335297-359185141.1768335297#proxy_pass"><code>proxy_pass</code></a></li>
         </ul>
-        <pre><code class="language-nginx">
+        <ul>
+          <pre><code class="language-nginx">
 server {
   listen 80;
   ...
@@ -182,18 +192,58 @@ server {
       return 301 https://$host$request_uri;
   }
 }</code></pre>
-      <ul>
-        <li>You may notice that in the last code block, we were listening on port 443 for HTTPS traffic, but in this code block we are listening on port 80.</li>
-        <li>The reason for this is because we want to ensure that users are able to reach the application via either an HTTP or HTTPS connection, but we want them to be redirected to HTTPS for security reasons.</li>
-        <li>We accomplish this goal with the <code>location / { return 301 ... }</code> block which ensure that users, when they go to "http://missour.ai" automatically get redirected to the same location via HTTPS (as indicated by the <code>301</code> HTTP status code).</li>
-        <li>In order to redirect to the same location, you use two variables (<code>$host</code> and <code>$request_uri</code>) that Nginx "automagically" creates based on an incoming request.</li>
-
+        <ul>
+          <li>You may notice that in the last code block, we were listening on port 443 for HTTPS traffic, but in this code block we are listening on port 80.</li>
+          <li>The reason for this is because we want to ensure that users are able to reach the application via either an HTTP or HTTPS connection, but we want them to be redirected to HTTPS for security reasons.</li>
+          <li>We accomplish this goal with the <code>location / { return 301 ... }</code> block which ensure that users, when they go to "http://missour.ai" automatically get redirected to the same location via HTTPS (as indicated by the <code>301</code> HTTP status code).</li>
+          <li>In order to redirect to the same location, you use two variables (<code>$host</code> and <code>$request_uri</code>) that Nginx "automagically" creates based on an incoming request.</li>
+        </ul>
       </ul>
       </p>
       <p><span style="font-weight: 700;">Putting it all Together</span></p>
-      <h6>SSL Termination</h6>
-      <p>Ipsum Lorem</p>
-
+      <p>
+        Having gone into that detail, I want to resurface the initial problem that I faced that led me to Nginx in the first place: How can I make sure that my brother in law doesn't have to enter https://missour.ai:${port}/${route} and can instead cleanly go to https://missour.ai?  Nginx, as ChatGPT told me, allows that to happen, but now I feel more comfortable in explaining the how.  For me, the most useful way to illustrate that is through revisiting the conceptual analysis of the request that I presented earlier.
+        <ol>
+          <li>Browser sends an HTTP/HTTPS request to the DNS server <span style="font-weight: 700;">(No change)</span></li>
+          <li>Request gets an IP address from the DNS server <span style="font-weight: 700;">(No change)</span></li>
+          <li>Request gets to the IP address <span style="font-weight: 700;">on port 80 or 443</span></li>
+          <li><span style="font-weight: 700;">Nginx</span></li>
+          <ul>
+            <li>Listening on Port 80/443</li>
+            <li>Validates the Host header</li>
+            <li>Redirects to Port 8000</li>
+            <ul>
+              <li>HTTPS: https://missour.ai -> https://missour.ai/transcription -> https://missour.ai:8000/transcription <span style="font-weight: 700;">(This is where your application is being served)</span></li>
+              <li>HTTP: http://missour.ai -> https://missour.ai -> HTTPS path</li>
+            </ul>
+          </ul>
+          <li>Request arrives at your application</li>
+        </ol>
+      </p>
+      <p>
+        This, however, left be curious, as to why this was best practice.
+      </p>
+      <h4>
+        Loop Two
+      </h4>
+      <p>
+        Thinking about my current setup, I felt like I was getting Xzibit, "we heard you like cars, so we put a car in your car" vibes.
+        <div style="display: flex; justify-content: center;">
+          Nginx &#8594 Uvicorn &#8594 My Django Application
+        </div>
+        Why did I need both Nginx AND Uvicorn?  Why add Nginx when....
+      </p>
+      <h5><span style="color: red;">Don't I already have a web server?</span></h5>
+      <p>
+        The first thing that was confusing to me was that Nginx was not mentioned in the main <a href="https://docs.djangoproject.com/en/6.0/howto/deployment/">How to deploy</a> section of the Django docs.  It was featured in the discussion on <a href="https://docs.djangoproject.com/en/6.0/howto/static-files/deployment/">static files</a> for reasons related to speed, but I was getting the feeling that Nginx wasn't STRICTLY required to sit in front of Uvicorn.  The Deployment section of the uvicorn documentation that speaks to <a href="https://uvicorn.dev/deployment/#running-behind-nginx">"Running behind Nginx"</a> expresses exactly that sentiment
+      </p>
+      <div style="display: flex; justify-content: center; padding: 0 100px">
+        Using Nginx as a proxy in front of your Uvicorn processes may not be necessary, but is recommended for additional resilience. Nginx can deal with serving your static media and buffering slow requests, leaving your application servers free from load as much as possible.
+      </div>
+      <p>
+        At this point, I felt like understanding the exact <span style="font-weight: 700;">why</span> behind "stacking" Nginx and uvicorn was performance related, which was not really going to gain me very much at the moment given that my project has an audience of one who is willing to tolerate a lack of "snappiness."  That being said, I did feel like understanding the <span>how</span>, at least from the vantage point of my Python code, uvicorn was working.  As I looked into this I came to realize that ...
+      </p>
+      <h5><span style="color: green;"><code>asgi.py</code> and <code>wsgi.py</code> are basically fancy <code>main.py</code> files</span></h5>
     </main>
   </body>
 </html>
