@@ -39,7 +39,6 @@ nav {
 }
 .blog-nav {
     display: block;
-    height: 100vh;
 }
 .blog-nav a {
     color: white;

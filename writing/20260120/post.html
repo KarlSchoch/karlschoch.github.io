@@ -1,0 +1,327 @@
+<h2>Why Nginx?</h2>
+<p>January 20th, 2026</p]>
+<p>
+I have recently embarked on a journey to create an application that is being used by my brother-in-law - the textbook example of a "personal project."  My motivations for doing this were numerous, but significant amongst them were a desire to learn things.  This is (hopefully) the first in a series of posts to catalog what I have learned.
+</p>
+<p>
+The first thing that I learned, unsurprisingly, was something that I already thought I "knew".  Working on large applications that utilized K8s, I obviously knew what Nginx was, but it wasn't until I started to take the training wheels (both in terms of my teammates and K8s) that I came to REALLY BEGIN TO understand what was going on at the edge of my K8s clusters.  In this cluster, I will try to give you a RIVETING "blow-by-blow" account of this journey of discovery.
+</p>
+<p>
+<ul>
+    <li><span style="font-weight: 700;">Loop One</span></li>
+    <ul>
+        <li>I need a Domain, but <span style="color: red">getting to this application is a disaster!</span></li>
+        <li><span style="color: green">Insight</span>: DNS and Nginx "fill gaps"</li>
+    </ul>
+    <li><span style="font-weight: 700;">Loop Two</span></li>
+    <ul>
+        <li>Ok, but don't <span style="color: red">I already have a web server?</span></li>
+        <li><span style="color: green">Insight</span>: <code>asgi.py</code> and <code>wsgi.py</code> are basically fancy main.py files</li>
+    </ul>
+    <li><span style="font-weight: 700;">Widening the Aperture</span></li>
+</ul>
+</p>
+<h3>
+Loop One
+</h3>
+<p>
+I had worked with my brother-in-law for a while to get the application "up-to-speed", and during that time I had basically been sending him to an IP address/port/route combination.  I knew that this was not sustainable for a number of reasons, but I wanted to be able to iterate quickly and at that point I was more interested in learning about AI/Django fundamentals than the "scut" work of making the application more user friendly/secure.  Additionally, he just wanted certain features baseline features available, and was willing to tolerate some slight jankiness to get those capabilities.
+</p>
+<p>
+Once we had a working version of the application, however, I knew that I needed to give my brother-in-law a domain name.  Having been around software for a while, I knew enought to know that I needed to purchase a domain name and create a DNS record to the server's IP address.  After some light, ChatGPT-aided fiddling around clogged up A Records, I had things **kind of** working but...
+</p>
+<h4><span style="color: red">Getting to this application is a disaster!</span></h4>
+<p>
+In order for me to get access to the application through the domain, I had to do two things: disable security policies for my browser and type in the <code>http://${domain}:${port}/${path}</code> path to the application.  Even if this clunkiness was not a problem for my brother-in-law, I knew that this routing issue was incredibly solvable and so, in the spirit of this being an "educational" project I attempted to dive in and solve it.  Obviously, this being the ChatGPT era, I had a solution at my finger-tips (and even before ChatGPT, there were thousands of Medium articles walkthing through how to create a Nginx -> WSGI/ASGI -> Django deployment), so the real value came not from "solving" this problem in the context of my application, but in understanding, and being able to clearly explain, the "why" behind what ChatGPT (or the Medium articles) were giving me.  I came to quickly realize that...
+</p>
+<h4><span style="color: green;">DNS and Nginx "fill gaps"</span></h4>
+<p>
+Just like Rocky and Adrienne, Nginx and DNS "fill gaps," each having distinct responsibilities for getting a request from a user's browser to your application.
+</p>
+<div style="display: flex; justify-content: center;">
+<table style="border-collapse: collapse; text-align: center;">
+    <caption style="caption-side: bottom; padding: 5px 0 0 0; font-weight: bold;">
+    Separation of Concerns
+    </caption>
+    <thead>
+    <tr>
+        <th style="padding: 8px 12px; border: 1px solid #ddd;">Domain → IP</th>
+        <th style="padding: 8px 12px; border: 1px solid #ddd;">IP → Your Application</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">DNS</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">Nginx</td>
+    </tr>
+    </tbody>
+</table>
+</div>
+<h5>DNS: Domains to IPs</h5>
+I'm not going to delve too deeply into this, since it is covered in any introductory networking resource in far more detail than I really care to go into, but the key point that was driven home to me by looking at the issues with going from my domain to my application's home page was that DNS, given a domain, will give you an IP.  This is obviously very powerful, but that is (essentially) all that you are looking for when you create your various DNS records: create the ability to route traffic from your domain to your server/load balancer/ingress.
+<h5>Nginx: IP to Your Application (via Reverse Proxy)</h5>
+<p>
+Once the request arrived at my IP address, I started to appreciate how Nginx's ability to perform as a <span style="font-weight: 700;">Reverse Proxy</span> allowed it to route requests once they had arrived at the instance
+</p>
+<p>
+<span style="text-decoration: underline;">TLDR</span> Nginx's Reverse Proxy capability allowed me to ensure that when my brother-in-law typed <code>https://www.missour.ai</code> he was sucessfully redirected to the port and route where my application was hosted without having to enter the port and route each time into the browser's URL bar.
+</p>
+<p>
+<span style="text-decoration: underline">Conceptual Overview</span>
+</p>
+<p>
+Before I write out the Nginx configuration that I used to accomplish this task, I am going to describe (to the best of my understanding) what is happening when a user types in <code>https://www.missour.ai</code> to establish a conceptual understanding of what missing pieces Nginx provides
+<ol>
+    <li>Browser sends an HTTP/HTTPS request to the DNS server</li>
+    <li>Request gets an IP address from the DNS server</li>
+    <li>Request gets to the IP address</li>
+    <li>Your application is being hosted on a specific port (usually 8000 in Django) and route (indicated in <code>urls.py</code> in Django) on that server</li>
+</ol>
+At that point, you can see where the problem lies: between steps three and four.  Without the user explicitly entering the port and route information into the browser, the request doesn't have the information required to "find its way" to your application.  <span style="font-weight: 700;">This is where Nginx as a Reverse Proxy comes in</span>: it provides the request with those "directions."
+</p>
+<p>
+<span style="text-decoration: underline;">Walking through the Code</span>
+</p>
+<p>
+With this framing in mind, let's begin to go through the most relevant portions of the <code>default.conf</code> for this topic that is <a href="https://github.com/KarlSchoch/missour.ai/blob/main/nginx/default.conf">hosted in my application's GitHub.</a>
+</p>
+<p>
+<ul>
+    <pre><code class="language=Nginx">
+server {
+listen 80;
+...
+}
+
+server {
+listen 443 ssl;
+...
+}</code></pre>
+    <ul>
+    <li>Tells Nginx which ports to listen on for incoming traffic</li>
+    <li>Ensure that Nginx can receive the HTTP and HTTPS traffic that the browser is sending</li>
+    <li>If Nginx never receives the request, it can't provide the request with the "directions" to the application</li>
+    </ul>
+</ul>
+<ul>
+    <pre><code class="language=Nginx">
+server {
+...
+server_name missour.ai www.missour.ai;
+...
+}</code></pre>
+    <ul>
+    <li>This block, in something of a juxtaposition to the previous block, is intended to ensure that only the correct traffic gets handled by your application</li>
+    <li>Go to a website, open the DevTools Network Tab, hit the record button, reload a page, stop recording, and then click on one of the files being loaded</li>
+    <li>Click on the "Headers" tab and find the "Host" entry.</li>
+    <li>This section of the <code>default.conf</code> ensures that there is a "handshake" between what is in the "Hosts" portion of the HTTP/HTTPS header and your <code>server</code> block, which in turn avoids accidentally serving your application</li>
+    <li>There are also certificate issues this helps address, but I will cover that in the next section.</li>
+    </ul>
+</ul>
+<ul>
+    <pre><code class="language-nginx">
+server {
+listen 443 ssl;
+...
+
+location = / {
+return 302 /transcription/;
+}
+
+location / {
+proxy_pass http://web:8000;
+...
+}
+}</code></pre>
+    <ul>
+    <li>The first concept to understand here is the difference between <span style="font-weight: 700;">exact</span> and <span style="font-weight: 700;">prefix</span> matches</li>
+    <ul>
+        <li>Exact Match: Matches the **exact** URI.  This is the type of match given in the <code>location = /</code> code block.</li>
+        <li>Prefix Match: Matches **anything** that starts with the prefix (i.e. "/")</li>
+    </ul>
+    <li>Nginx chooses the most specific paths first when making routing decisions, so it will use the information provided in the exact match first and redirect the user to <code>/transcription/</code>.</li>
+    <li>From there, Nginx falls back onto the prefix match (i.e. <code>location /</code>)</li>
+    <li>Within that location block, you can see that there are three components: <code>http://</code>, <code>web</code>, <code>:8000</code></li>
+    <ul>
+        <li><code>http://</code> and <code>:8000</code>: These two relate to the protcol and port that the asgi/wsgi server is listening on.  Since I am using Uvicorn, I fell in on these values and this is likely to be boilerplate across various Nginx <code>default.conf</code> files.</li>
+        <li><code>web</code>: This matches the name of the service that I gave my Django application in my <code>docker-compose.yml</code>.  I am sure that this "synching" is something I will have to dig into at some point, but at this point I've gotten pretty comfortable with deploying applications on my own with Docker Compose and am content for now with this being a piece of trivia that is something of a black box.</li>
+    </ul>
+    <li>You will notice that the URI redirected to during the exact match (i.e. <code>/transcription/</code>) is noticably <span style="font-weight: 700;">absent</span> from the <code>proxy_pass</code></li>
+    <li>The reason for this is because if you don't include a URI within the <code>proxy_pass</code>, the original URI that was passed is preservered.  In this case, you get <code>/transcription/</code> in and <code>/transcription/</code> out.  This functionality is covered, somewhat confusingly in my opinion, in the portion of the Nginx documentation on <a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html?&_ga=2.116761478.1846178885.1768335297-359185141.1768335297#proxy_pass"><code>proxy_pass</code></a></li>
+    </ul>
+</ul>
+<ul>
+    <pre><code class="language-nginx">
+server {
+listen 80;
+...
+
+location / {
+return 301 https://$host$request_uri;
+}
+}</code></pre>
+<ul>
+    <li>You may notice that in the last code block, we were listening on port 443 for HTTPS traffic, but in this code block we are listening on port 80.</li>
+    <li>The reason for this is because we want to ensure that users are able to reach the application via either an HTTP or HTTPS connection, but we want them to be redirected to HTTPS for security reasons.</li>
+    <li>We accomplish this goal with the <code>location / { return 301 ... }</code> block which ensure that users, when they go to "http://missour.ai" automatically get redirected to the same location via HTTPS (as indicated by the <code>301</code> HTTP status code).</li>
+    <li>In order to redirect to the same location, you use two variables (<code>$host</code> and <code>$request_uri</code>) that Nginx "automagically" creates based on an incoming request.</li>
+</ul>
+</ul>
+</p>
+<p><span style="text-decoration: underline;">Putting it all Together</span></p>
+<p>
+Having gone into that detail, I want to resurface the initial problem that I faced that led me to Nginx in the first place: How can I make sure that my brother in law doesn't have to enter https://missour.ai:${port}/${route} and can instead cleanly go to https://missour.ai?  Nginx, as ChatGPT told me, allows that to happen, but now I feel more comfortable in explaining the how.  For me, the most useful way to illustrate that is through revisiting the conceptual analysis of the request that I presented earlier.
+<ol>
+    <li>Browser sends an HTTP/HTTPS request to the DNS server <span style="font-weight: 700;">(No change)</span></li>
+    <li>Request gets an IP address from the DNS server <span style="font-weight: 700;">(No change)</span></li>
+    <li>Request gets to the IP address <span style="font-weight: 700;">on port 80 or 443</span></li>
+    <li><span style="font-weight: 700;">Nginx</span></li>
+    <ul>
+    <li>Listening on Port 80/443</li>
+    <li>Validates the Host header</li>
+    <li>Redirects to Port 8000</li>
+    <ul>
+        <li>HTTPS: https://missour.ai -> https://missour.ai/transcription -> https://missour.ai:8000/transcription <span style="font-weight: 700;">(This is where your application is being served)</span></li>
+        <li>HTTP: http://missour.ai -> https://missour.ai -> HTTPS path</li>
+    </ul>
+    </ul>
+    <li>Request arrives at your application</li>
+</ol>
+</p>
+<p>
+This, however, left be curious, as to why this was best practice.
+</p>
+<h3>
+Loop Two
+</h3>
+<p>
+Thinking about my current setup, I felt like I was getting Xzibit, "we heard you like cars, so we put a car in your car" vibes.
+<div style="display: flex; justify-content: center;">
+    Nginx &#8594 Uvicorn &#8594 My Django Application
+</div>
+Why did I need both Nginx AND Uvicorn?  Why add Nginx when....
+</p>
+<h4><span style="color: red;">Don't I already have a web server?</span></h4>
+<p>
+The first thing that was confusing to me was that Nginx was not mentioned in the main <a href="https://docs.djangoproject.com/en/6.0/howto/deployment/">How to deploy</a> section of the Django docs.  It was featured in the discussion on <a href="https://docs.djangoproject.com/en/6.0/howto/static-files/deployment/">static files</a> for reasons related to speed, but I was getting the feeling that Nginx wasn't STRICTLY required to sit in front of Uvicorn.  The Deployment section of the Uvicorn documentation that speaks to <a href="https://uvicorn.dev/deployment/#running-behind-nginx">"Running behind Nginx"</a> expresses exactly that sentiment
+</p>
+<div style="display: flex; justify-content: center; padding: 0 100px">
+Using Nginx as a proxy in front of your Uvicorn processes may not be necessary, but is recommended for additional resilience. Nginx can deal with serving your static media and buffering slow requests, leaving your application servers free from load as much as possible.
+</div>
+<p>
+At this point, I felt like understanding the exact <span style="font-weight: 700;">why</span> behind "stacking" Nginx and Uvicorn was performance related, which was not really going to gain me very much at the moment given that my project has an audience of one who is willing to tolerate a lack of "snappiness."  That being said, I did feel like understanding the <span style="font-weight: 700;">how</span>, at least from the vantage point of my Python code, Uvicorn was working.  As I looked into this I came to realize that ...
+</p>
+<h4><span style="color: green;"><code>asgi.py</code> and <code>wsgi.py</code> are basically fancy <code>main.py</code> files</span></h4>
+<p>
+When I write Python programs, I generally try to write various different modules that I tie together in a single <code>main.py</code> file, and I think that most people do this as well.  As I started to put together my <a href="https://github.com/KarlSchoch/missour.ai/blob/main/missourai_django/missourai_web_app/asgi.py"><code>asgi.py</code> file</a> and its relationship to the <a href="https://github.com/KarlSchoch/missour.ai/blob/main/Dockerfile#L40">command that ChatGPT told me to put into my Dockerfile to run to get my application running</a>, informed by some <code>ModuleImportError</code> issues relating to file paths and the <a href="https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/#the-application-object">Django ASGI documentation</a>, I noticed that I was being walked into a similar pattern with Django to the one that I normally use with a <code>main.py</code>.  I had a "core" file, in this case <code>asgi.py</code>, that I imported various packages into, in this case my Django application.  If you look at the Uvicorn Documentation's <a href="https://uvicorn.dev/#running-programmatically">Running programmatically section</a>, you'll even see that it covers running Uvicorn from a <code>main.py</code>!  That being said, I knew that there was SLIGHTLY more to what was going on here than my useful but incomplete "<code>main.py</code> by another name", since not any old <code>main.py</code> can serve web requests.
+</p>
+<p>
+<span style="text-decoration: underline;">TLDR</span>: Uvicorn, and other ASGI servers mentioned in the Django documentation like Daphne and Hypercorn, provide a wrapper that allows a Python application to meet the requirements for serving web traffic asynchronously, requirements that are laid out within the <a href="https://asgi.readthedocs.io/en/latest/">ASGI Specification</a>
+</p>
+<p>
+<span style="text-decoration: underline">Conceptual Overview</span>
+</p>
+<p>
+Similar to above, I want to walk through what is happening conceptually before diving into the details.
+<ol>
+    <li>People define what an ASGI web server in Python needs to be able to do</li>
+    <li>People write ASGI web servers that do the things laid out above</li>
+    <li>Django <code>asgi.py</code> creates a situation where <code>uvicorn asgi.py</code> ~ <code>python main.py</code></li>
+    <li>Invoke your web server and point it at the <code>asgi.py</code></li>
+</ol>
+</p>
+<p>
+<span style="text-decoration: underline">Walking Through the Code (and Docs)</span>
+</p>
+<p style="text-align: center; padding: 0 100px;">
+ASGI (Asynchronous Server Gateway Interface) is a spiritual successor to WSGI, intended to provide a <span style="font-weight: 700;">standard interface</span> between async-capable Python web servers, frameworks, and applications. - <a href="https://asgi.readthedocs.io/en/latest/index.html">ASGI Documentation</a>
+</p>
+<p>
+To me, <span style="font-weight: 700;">standard interface</span> the key portion in this to understand what ASGI is.  An interface's dictionary definition is "a point where two systems, subjects, organizations, etc. meet and interact," and <span style="font-weight: 700;">ASGI describes the details of what to expect at that interaction point</span>.  I think that looking at the <a href="https://asgi.readthedocs.io/en/latest/specs/main.html#events">Events</a> section of the ASGI documentation provides some good color on how those details are laid out: "Each event is a dict with a top-level type key that contains a Unicode string of the message type...  Because these messages could be sent over a network, they need to be serializable, and so they are only allowed to contain the following types: Byte strings, Unicode strings, Integers (within the signed 64-bit range), Floating point numbers (within the IEEE 754 double precision range; no <code>Nan</code> or infinities),  Lists (tuples should be encoded as lists), Dicts (keys must be Unicode strings), Booleans, <code>None</code>."  This is a fairly detailed description of what to expect in an event, and people sending and receiving events to know what to expect (very useful to Django developers working to make the framework ASGI friendly!).
+</p>
+<p style="text-align: center; padding: 0 100px;">
+Uvicorn is an ASGI web server <span style="font-weight: 700;">implementation</span> for Python. - <a href="https://uvicorn.dev/">Uvicorn Docs</a>
+</p>
+<p>
+Once again, I highlighted what I think is the key term: <span style="font-weight: 700;">implementation</span>.  ASGI tells people what to build, then people need to build it!  Uvicorn, and <a href="https://asgi.readthedocs.io/en/latest/implementations.html">other pieces of software</a>, are projects that bring ASGI to life.  These ASGI implementations <a href="https://asgi.readthedocs.io/en/latest/specs/main.html#overview">consist of two components</a>: a <span style="font-weight: 700;">protocol server</span> and an <span style="font-weight: 700;">application</span> where the <span style="text-decoration: underline;">application lives within the protocol server</span>.  You can see this application within my application's <code>asgi.py</code> file:
+</p>
+<pre><code class="language-python">
+"""
+ASGI config for missourai_web_app project.
+
+It exposes the ASGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/5.1/howto/deployment/asgi/
+"""
+
+import os
+
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'missourai_web_app.settings')
+
+application = get_asgi_application()</code></pre>
+<p>
+The auto-generated comment at the start of the file directs you to the documentation, but you can pretty simply piece together what is happening here
+<ol>
+    <li>Import the <code>get_asgi_application</code> function: <code>from django.core.asgi import get_asgi_application</code></li>
+    <li>Point <code>get_asgi_application</code> function to your Django application's settings file: <code>os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'missourai_web_app.settings')</code></li>
+    <li>Create the <span style="font-weight: 700;">application callable</span>: <code>application = get_asgi_application()</code></li>
+</ol>
+</p>
+    <pre><code class="language-bash">
+CMD ["/app/.venv/bin/uvicorn", "missourai_web_app.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]</code></pre>
+<p>
+Since the code in the <code>asgi.py</code> made the application "callable," you can now use an "ASGI Implementation" like Uvicorn to allow your application to receive HTTP/HTTPS/Web Socket traffic, as shown above from my <a href="https://github.com/KarlSchoch/missour.ai/blob/main/Dockerfile#L40">Dockerfile</a>.
+</p>
+<p>
+<span style="text-decoration: underline">Putting it all Together</span>
+</p>
+<p>
+I think that the simplest way to understand my original question of <span>how</span> Uvicorn is working is to map Django code to the "ASGI Components" laid out in the <a href="https://asgi.readthedocs.io/en/latest/specs/main.html#overview">ASGI Documentation</a>: the Application and the Protocol Server.
+</p>
+<div style="display: flex; justify-content: center; padding: 0 100px;">
+<table style="border-collapse: collapse; text-align: center;">
+    <caption style="caption-side: bottom; padding: 5px 0 0 0; font-weight: bold;">
+    Reference Chain
+    </caption>
+    <thead>
+    <tr>
+        <th style="padding: 8px 12px; border: 1px solid #ddd;">File</th>
+        <th style="padding: 8px 12px; border: 1px solid #ddd;">Relevant Code</th>
+        <th style="padding: 8px 12px; border: 1px solid #ddd;">Application Reference</th>
+        <th style="padding: 8px 12px; border: 1px solid #ddd;">ASGI Component</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;"><code>asgi.py</code></td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">
+        <code>os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'missourai_web_app.settings')</code>
+        </td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">
+        <code>missourai_web_app.settings</code> (defined within <code>settings.py</code>)
+        </td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">Application</td>
+    </tr>
+    <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;"><code>Dockerfile</code></td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">
+        <code>CMD ["/app/.venv/bin/uvicorn", "missourai_web_app.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]</code>
+        </td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">
+        <code>missourai_web_app.asgi:application</code> (defined within <code>asgi.py</code>)
+        </td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">Application Server</td>
+    </tr>
+    </tbody>
+</table>
+</div>
+<p>
+As you can see in the table above <code>settings.py</code> &#8594 <code>missourai_web_app.settings</code> in <code>asgi.py</code> &#8594 <code>missourai_web_app.asgi:application</code> in the Uvicorn invocation, and how these map cleanly onto some of the abstract concepts discussed in the ASGI Documentation
+</p>
+<h3>Widening the Aperture</h3>
+<p>
+So, I hardly think that this is a unique or particularly well written contribution to the Python/Web Development blog universe (I would point people to <a href="https://www.youtube.com/watch?v=WqrCnVAkLIo">this YouTube video for a great treatment of this topic</a>) and doubt that anyone will read this, but nonetheless I have found this to be a productive exercise.  Although what I have discussed above is hardly a "low level" look at Nginx or Uvicorn, after I got the application working but before writing this piece, I still felt that there were a few concepts that hadn't quite "stuck" as I worked with these tools and the act of explaining helped to highlight where my understanding was shaky.  Most interesting to me was to see how I could dive into (what I felt) was obscure documentation and map it (albeit at a high level) to the code that was in my project.  I'm not sure that I will ever be diving into web server source code since I have no illusions that I am doing anything other than standing on the shoulders of giants, but I feel confident that I have learned something unexpected that is fundamental to working on the web.
+</p>
