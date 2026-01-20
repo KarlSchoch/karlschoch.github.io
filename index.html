@@ -39,7 +39,7 @@
               <li>Ok, but don't <span style="color: red">I already have a web server?</span></li>
               <li><span style="color: green">Insight</span>: <code>asgi.py</code> and <code>wsgi.py</code> are basically fancy main.py files</li>
             </ul>
-          <li><span style="font-weight: 700;">Widening the Aperture</span>: Let's talk about PEPs</li>
+          <li><span style="font-weight: 700;">Widening the Aperture</span></li>
         </ul>
       </p>
       <h3>
@@ -85,7 +85,7 @@
         Once the request arrived at my IP address, I started to appreciate how Nginx's ability to perform as a <span style="font-weight: 700;">Reverse Proxy</span> allowed it to route requests once they had arrived at the instance
       </p>
       <p>
-        <span style="text-decoration: underline;">TLDR</span> Nginx's Reverse Proxy capability allowed me to ensure that when my brother-in-law typed <code>https://www.domain</code> he was sucessfully redirected to the port and route where my application was hosted without having to enter the port and route each time into the browser's URL bar.
+        <span style="text-decoration: underline;">TLDR</span> Nginx's Reverse Proxy capability allowed me to ensure that when my brother-in-law typed <code>https://www.missour.ai</code> he was sucessfully redirected to the port and route where my application was hosted without having to enter the port and route each time into the browser's URL bar.
       </p>
       <p>
         <span style="text-decoration: underline">Conceptual Overview</span>
@@ -230,7 +230,7 @@ server {
         Using Nginx as a proxy in front of your Uvicorn processes may not be necessary, but is recommended for additional resilience. Nginx can deal with serving your static media and buffering slow requests, leaving your application servers free from load as much as possible.
       </div>
       <p>
-        At this point, I felt like understanding the exact <span style="font-weight: 700;">why</span> behind "stacking" Nginx and Uvicorn was performance related, which was not really going to gain me very much at the moment given that my project has an audience of one who is willing to tolerate a lack of "snappiness."  That being said, I did feel like understanding the <span>how</span>, at least from the vantage point of my Python code, Uvicorn was working.  As I looked into this I came to realize that ...
+        At this point, I felt like understanding the exact <span style="font-weight: 700;">why</span> behind "stacking" Nginx and Uvicorn was performance related, which was not really going to gain me very much at the moment given that my project has an audience of one who is willing to tolerate a lack of "snappiness."  That being said, I did feel like understanding the <span style="font-weight: 700;">how</span>, at least from the vantage point of my Python code, Uvicorn was working.  As I looked into this I came to realize that ...
       </p>
       <h4><span style="color: green;"><code>asgi.py</code> and <code>wsgi.py</code> are basically fancy <code>main.py</code> files</span></h4>
       <p>
@@ -254,19 +254,97 @@ server {
       <p>
         <span style="text-decoration: underline">Walking Through the Code (and Docs)</span>
       </p>
-      <p>
-        <ol>
-          <li>Python ASGI Specification Written: People get together, hash out what an ASGI web server in Python needs to be able to do, and write it down.</li>
-          <li>Uvicorn (and others) Implement ASGI: Quite simply, people write ASGI web servers that do the things the specification says an ASGI web server needs to be able to do.</li>
-          <ul>
-            <li>In case anyone is wondering, this is a situation where it just took me a little while to understand what is going on around me.  The <a href="https://uvicorn.dev/">Uvicorn documentation</a> says basically this thing right at the top: Uvicorn is an ASGI web server implementation for Python.  Until recently Python has lacked a minimal low-level server/application interface for async frameworks. The ASGI specification fills this gap, and means we're now able to start building a common set of tooling usable across all async frameworks.</li>
-          </ul>
-          <li><code>asgi.py</code> Creates "Application Callable": The <code>asgi.py</code>, which references your Django app's settings, provides a file containing your Django application that the Uvicorn web server can run.  This is similar to how you bundle all of your modules in a <code>main.py</code> file where (to oversimplify) <code>uvicorn asgi.py</code> ~ <code>python main.py</code></li>
-          <li></li>
-        </ol>
+      <p style="text-align: center; padding: 0 100px;">
+        ASGI (Asynchronous Server Gateway Interface) is a spiritual successor to WSGI, intended to provide a <span style="font-weight: 700;">standard interface</span> between async-capable Python web servers, frameworks, and applications. - <a href="https://asgi.readthedocs.io/en/latest/index.html">ASGI Documentation</a>
       </p>
       <p>
-        <span style="text-decoration: underline">Conceptual Overview</span>
+        To me, <span style="font-weight: 700;">standard interface</span> the key portion in this to understand what ASGI is.  An interface's dictionary definition is "a point where two systems, subjects, organizations, etc. meet and interact," and <span style="font-weight: 700;">ASGI describes the details of what to expect at that interaction point</span>.  I think that looking at the <a href="https://asgi.readthedocs.io/en/latest/specs/main.html#events">Events</a> section of the ASGI documentation provides some good color on how those details are laid out: "Each event is a dict with a top-level type key that contains a Unicode string of the message type...  Because these messages could be sent over a network, they need to be serializable, and so they are only allowed to contain the following types: Byte strings, Unicode strings, Integers (within the signed 64-bit range), Floating point numbers (within the IEEE 754 double precision range; no <code>Nan</code> or infinities),  Lists (tuples should be encoded as lists), Dicts (keys must be Unicode strings), Booleans, <code>None</code>."  This is a fairly detailed description of what to expect in an event, and people sending and receiving events to know what to expect (very useful to Django developers working to make the framework ASGI friendly!).
+      </p>
+      <p style="text-align: center; padding: 0 100px;">
+        Uvicorn is an ASGI web server <span style="font-weight: 700;">implementation</span> for Python. - <a href="https://uvicorn.dev/">Uvicorn Docs</a>
+      </p>
+      <p>
+        Once again, I highlighted what I think is the key term: <span style="font-weight: 700;">implementation</span>.  ASGI tells people what to build, then people need to build it!  Uvicorn, and <a href="https://asgi.readthedocs.io/en/latest/implementations.html">other pieces of software</a>, are projects that bring ASGI to life.  These ASGI implementations <a href="https://asgi.readthedocs.io/en/latest/specs/main.html#overview">consist of two components</a>: a <span style="font-weight: 700;">protocol server</span> and an <span style="font-weight: 700;">application</span> where the <span style="text-decoration: underline;">application lives within the protocol server</span>.  You can see this application within my application's <code>asgi.py</code> file:
+      </p>
+      <pre><code class="language-python">
+"""
+ASGI config for missourai_web_app project.
+
+It exposes the ASGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/5.1/howto/deployment/asgi/
+"""
+
+import os
+
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'missourai_web_app.settings')
+
+application = get_asgi_application()</code></pre>
+      <p>
+        The auto-generated comment at the start of the file directs you to the documentation, but you can pretty simply piece together what is happening here
+        <ol>
+          <li>Import the <code>get_asgi_application</code> function: <code>from django.core.asgi import get_asgi_application</code></li>
+          <li>Point <code>get_asgi_application</code> function to your Django application's settings file: <code>os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'missourai_web_app.settings')</code></li>
+          <li>Create the <span style="font-weight: 700;">application callable</span>: <code>application = get_asgi_application()</code></li>
+        </ol>
+      </p>
+            <pre><code class="language-bash">
+CMD ["/app/.venv/bin/uvicorn", "missourai_web_app.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]</code></pre>
+      <p>
+        Since the code in the <code>asgi.py</code> made the application "callable," you can now use an "ASGI Implementation" like Uvicorn to allow your application to receive HTTP/HTTPS/Web Socket traffic, as shown above from my <a href="https://github.com/KarlSchoch/missour.ai/blob/main/Dockerfile#L40">Dockerfile</a>.
+      </p>
+      <p>
+        <span style="text-decoration: underline">Putting it all Together</span>
+      </p>
+      <p>
+        I think that the simplest way to understand my original question of <span>how</span> Uvicorn is working is to map Django code to the "ASGI Components" laid out in the <a href="https://asgi.readthedocs.io/en/latest/specs/main.html#overview">ASGI Documentation</a>: the Application and the Protocol Server.
+      </p>
+      <div style="display: flex; justify-content: center; padding: 0 100px;">
+        <table style="border-collapse: collapse; text-align: center;">
+          <caption style="caption-side: bottom; padding: 5px 0 0 0; font-weight: bold;">
+            Reference Chain
+          </caption>
+          <thead>
+            <tr>
+              <th style="padding: 8px 12px; border: 1px solid #ddd;">File</th>
+              <th style="padding: 8px 12px; border: 1px solid #ddd;">Relevant Code</th>
+              <th style="padding: 8px 12px; border: 1px solid #ddd;">Application Reference</th>
+              <th style="padding: 8px 12px; border: 1px solid #ddd;">ASGI Component</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;"><code>asgi.py</code></td>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">
+                <code>os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'missourai_web_app.settings')</code>
+              </td>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">
+                <code>missourai_web_app.settings</code> (defined within <code>settings.py</code>)
+              </td>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">Application</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;"><code>Dockerfile</code></td>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">
+                <code>CMD ["/app/.venv/bin/uvicorn", "missourai_web_app.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]</code>
+              </td>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">
+                <code>missourai_web_app.asgi:application</code> (defined within <code>asgi.py</code>)
+              </td>
+              <td style="padding: 8px 12px; border: 1px solid #ddd;">Application Server</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        As you can see in the table above <code>settings.py</code> &#8594 <code>missourai_web_app.settings</code> in <code>asgi.py</code> &#8594 <code>missourai_web_app.asgi:application</code> in the Uvicorn invocation, and how these map cleanly onto some of the abstract concepts discussed in the ASGI Documentation
+      </p>
+      <h3>Widening the Aperture</h3>
+      <p>
+        So, I hardly think that this is a unique or particularly well written contribution to the Python/Web Development blog universe (I would point people to <a href="https://www.youtube.com/watch?v=WqrCnVAkLIo">this YouTube video for a great treatment of this topic</a>) and doubt that anyone will read this, but nonetheless I have found this to be a productive exercise.  Although what I have discussed above is hardly a "low level" look at Nginx or Uvicorn, after I got the application working but before writing this piece, I still felt that there were a few concepts that hadn't quite "stuck" as I worked with these tools and the act of explaining helped to highlight where my understanding was shaky.  Most interesting to me was to see how I could dive into (what I felt) was obscure documentation and map it (albeit at a high level) to the code that was in my project.  I'm not sure that I will ever be diving into web server source code since I have no illusions that I am doing anything other than standing on the shoulders of giants, but I feel confident that I have learned something unexpected that is fundamental to working on the web.
       </p>
     </main>
   </body>
